@@ -1,9 +1,0 @@
-{
-  "name": "Mineral ID",
-  "short_name": "Mineral ID",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f2efe9",
-  "theme_color": "#171614",
-  "icons": []
-}
