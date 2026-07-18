@@ -1,328 +1,426 @@
-'use strict';
+const screens = document.querySelectorAll('.screen');
+const menu = document.getElementById('menu');
+const menuBtn = document.getElementById('menuBtn');
 
-const CREDENTIALS = { email: 'mvp@mineralid.cl', password: '123' };
-const DB_NAME = 'MineralIDMVP';
-const DB_VERSION = 1;
-const STORE_NAME = 'history';
+function showScreen(id) {
+  screens.forEach(screen => screen.classList.toggle('active', screen.id === id));
+  menu.classList.add('hidden');
+  menuBtn.setAttribute('aria-expanded', 'false');
+}
+
+document.querySelectorAll('[data-screen]').forEach(button => {
+  button.addEventListener('click', () => showScreen(button.dataset.screen));
+});
+
+menuBtn.addEventListener('click', () => {
+  const willOpen = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden');
+  menuBtn.setAttribute('aria-expanded', String(willOpen));
+});
+
+let stream = null;
+let lastResults = [];
+let analysisInProgress = false;
+let consultationInProgress = false;
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const photo = document.getElementById('photo');
+const startBtn = document.getElementById('startCamera');
+const takeBtn = document.getElementById('takePhoto');
+const stopBtn = document.getElementById('stopCamera');
+const status = document.getElementById('cameraStatus');
+const mineralResult = document.getElementById('mineralResult');
+const consultationPanel = document.getElementById('consultationPanel');
+const consultationChat = document.getElementById('consultationChat');
+const consultBtn = document.getElementById('consultGeologist');
+const closeConsultationBtn = document.getElementById('closeConsultation');
 
 const minerals = [
-  { name:'Calcopirita', type:'Sulfuro de cobre y hierro', symbol:'CuFeS₂', confidence:87, category:'Sulfuro', description:'Mineral de color amarillo latón y brillo metálico, frecuente en yacimientos de cobre.', features:['Color amarillo latón','Brillo metálico','Dureza 3,5–4','Raya verde negruzca'], alternatives:['Pirita 9%','Bornita 4%'] },
-  { name:'Pirita', type:'Sulfuro de hierro', symbol:'FeS₂', confidence:82, category:'Sulfuro', description:'Mineral metálico de tonalidad dorada pálida, conocido por su apariencia similar al oro.', features:['Color amarillo pálido','Brillo metálico','Dureza 6–6,5','Cristales cúbicos'], alternatives:['Calcopirita 12%','Marcasita 6%'] },
-  { name:'Malaquita', type:'Carbonato de cobre', symbol:'Cu₂CO₃(OH)₂', confidence:91, category:'Carbonato', description:'Mineral secundario de cobre reconocido por su intenso color verde y bandas características.', features:['Color verde intenso','Brillo vítreo a sedoso','Dureza 3,5–4','Raya verde clara'], alternatives:['Crisocola 6%','Azurita 3%'] },
-  { name:'Azurita', type:'Carbonato de cobre', symbol:'Cu₃(CO₃)₂(OH)₂', confidence:89, category:'Carbonato', description:'Mineral de cobre de color azul profundo, común en zonas de oxidación.', features:['Color azul intenso','Brillo vítreo','Dureza 3,5–4','Raya azul clara'], alternatives:['Malaquita 8%','Linarita 3%'] },
-  { name:'Cuarzo', type:'Óxido de silicio', symbol:'SiO₂', confidence:78, category:'Silicato', description:'Mineral abundante, generalmente transparente o blanco, con elevada dureza.', features:['Color variable','Brillo vítreo','Dureza 7','Fractura concoidea'], alternatives:['Calcita 14%','Feldespato 8%'] },
-  { name:'Hematita', type:'Óxido de hierro', symbol:'Fe₂O₃', confidence:85, category:'Óxido', description:'Mineral de hierro de color gris metálico a rojo terroso, con raya rojiza distintiva.', features:['Color gris a rojo','Brillo metálico o terroso','Dureza 5–6','Raya roja'], alternatives:['Magnetita 10%','Goethita 5%'] }
+  'Cuarzo', 'Calcita', 'Pirita', 'Calcopirita', 'Malaquita',
+  'Hematita', 'Magnetita', 'Galena', 'Yeso', 'Feldespato'
 ];
 
-const assistantAnswers = {
-  capture: {
-    question: '¿Cómo tomar una buena foto?',
-    answer: 'Limpia la lente, coloca la muestra sobre un fondo neutro, usa buena iluminación y procura que el mineral ocupe la mayor parte de la imagen sin perder el enfoque.'
-  },
-  confidence: {
-    question: '¿Qué significa la coincidencia?',
-    answer: 'Es un porcentaje demostrativo que representa qué tan similar sería la imagen a un mineral de la base de datos. En este MVP el valor es simulado.'
-  },
-  laboratory: {
-    question: '¿Reemplaza al laboratorio?',
-    answer: 'No. Mineral ID está planteado como apoyo para una identificación preliminar. Las decisiones críticas deben validarse con un geólogo o un análisis de laboratorio.'
-  },
-  plans: {
-    question: '¿Cómo contratar Mineral ID?',
-    answer: 'Las empresas podrían solicitar una demostración desde la sección Planes. El equipo comercial evaluaría usuarios, capacitación, soporte y accesorios necesarios.'
-  },
-  support: {
-    question: 'Necesito soporte',
-    answer: 'Para esta demostración puedes escribir a mvp@mineralid.cl. En la versión completa existiría soporte para usuarios y administradores de empresa.'
+const geologists = [
+  'Dra. Valentina Rojas',
+  'Geólogo Martín Salazar',
+  'Dra. Camila Fuentes',
+  'Geólogo Sebastián Araya',
+  'Dra. Fernanda Morales'
+];
+
+function wait(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+function randomDelay(minimum = 700, maximum = 5000) {
+  return Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+}
+
+async function startCamera() {
+  if (stream) return true;
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    status.textContent = 'Este navegador no permite acceder a la cámara.';
+    return false;
   }
-};
 
-const $ = (selector, parent = document) => parent.querySelector(selector);
-const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
-
-const loginView = $('#loginView');
-const appView = $('#appView');
-const screens = $$('.screen');
-const navLinks = $$('.nav-link');
-const titleMap = { inicio:'Panel principal', analizar:'Analizar mineral', historial:'Historial', guia:'Guía de minerales', planes:'Planes empresariales', soporte:'Soporte' };
-let selectedImage = '';
-let currentResult = null;
-let dbPromise = null;
-
-function openDatabase() {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  return dbPromise;
+  try {
+    status.textContent = 'Solicitando acceso a la cámara…';
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+    takeBtn.disabled = false;
+    stopBtn.disabled = false;
+    startBtn.disabled = true;
+    status.textContent = 'Cámara encendida y lista para capturar.';
+    return true;
+  } catch (error) {
+    status.textContent = 'No fue posible acceder a la cámara. Revisa los permisos y usa HTTPS o localhost.';
+    return false;
+  }
 }
 
-async function getHistory() {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const request = tx.objectStore(STORE_NAME).getAll();
-    request.onsuccess = () => resolve((request.result || []).sort((a, b) => b.id - a.id));
-    request.onerror = () => reject(request.error);
-  });
+function getRandomIdentification() {
+  const selected = [...minerals].sort(() => Math.random() - 0.5).slice(0, 3);
+  const first = Math.floor(Math.random() * 31) + 50;
+  const secondMaximum = Math.max(5, 95 - first);
+  const second = Math.floor(Math.random() * (secondMaximum - 4)) + 5;
+  const third = 100 - first - second;
+
+  return selected.map((name, index) => ({
+    name,
+    probability: [first, second, third][index]
+  })).sort((a, b) => b.probability - a.probability);
 }
 
-async function saveHistoryItem(item) {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(item);
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
-  });
+function showMineralIdentification(results) {
+  const [main] = results;
+  lastResults = results;
+
+  mineralResult.innerHTML = `
+    <p class="resultLabel">RESULTADO PRELIMINAR SIMULADO</p>
+    <h3>El mineral puede ser ${main.name}.</h3>
+    <div class="probabilities">
+      ${results.map(item => `
+        <div class="probabilityRow">
+          <div><strong>${item.name}</strong><span>${item.probability}%</span></div>
+          <div class="probabilityTrack"><span style="width: ${item.probability}%"></span></div>
+        </div>
+      `).join('')}
+    </div>
+    <small>Las probabilidades fueron generadas aleatoriamente y no corresponden a un análisis real.</small>
+  `;
+  mineralResult.classList.remove('hidden');
+  consultBtn.classList.remove('hidden');
+  consultationPanel.classList.add('hidden');
+
+  return `El mineral puede ser ${main.name}. Las probabilidades simuladas son ${results
+    .map(item => `${item.name}, ${item.probability} por ciento`)
+    .join('; ')}.`;
 }
 
-async function clearHistory() {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).clear();
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
-  });
+async function takePhoto() {
+  if (analysisInProgress) return null;
+  if (!stream || !video.videoWidth || !video.videoHeight) {
+    status.textContent = 'La cámara todavía no está lista.';
+    return null;
+  }
+
+  analysisInProgress = true;
+  takeBtn.disabled = true;
+  consultBtn.classList.add('hidden');
+  consultationPanel.classList.add('hidden');
+  mineralResult.classList.add('hidden');
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  photo.src = canvas.toDataURL('image/jpeg', 0.92);
+  photo.classList.remove('hidden');
+
+  const delay = randomDelay(700, 5000);
+  status.innerHTML = '<span class="spinner" aria-hidden="true"></span> Analizando la muestra…';
+  await wait(delay);
+
+  const results = getRandomIdentification();
+  const resultText = showMineralIdentification(results);
+  status.textContent = 'Fotografía tomada y análisis simulado completado.';
+  analysisInProgress = false;
+  takeBtn.disabled = false;
+  return resultText;
 }
 
-function toast(message) {
-  const element = $('#toast');
-  element.textContent = message;
-  element.classList.add('show');
-  clearTimeout(window.__toastTimer);
-  window.__toastTimer = setTimeout(() => element.classList.remove('show'), 2600);
+function stopCamera() {
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = null;
+  video.srcObject = null;
+  takeBtn.disabled = true;
+  stopBtn.disabled = true;
+  startBtn.disabled = false;
+  status.textContent = 'Cámara apagada.';
 }
 
-async function showScreen(id) {
-  screens.forEach(screen => screen.classList.toggle('active-screen', screen.id === id));
-  navLinks.forEach(link => link.classList.toggle('active', link.dataset.screen === id));
-  $('#screenTitle').textContent = titleMap[id] || 'Mineral ID';
-  $('.sidebar').classList.remove('open');
-  if (id === 'historial') await renderHistory();
-  if (id === 'inicio') await updateHomeStats();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+function addConsultationMessage(text, type, author = '') {
+  const wrapper = document.createElement('div');
+  wrapper.className = `consultMessage ${type}`;
+  if (author) {
+    const name = document.createElement('strong');
+    name.className = 'consultAuthor';
+    name.textContent = author;
+    wrapper.appendChild(name);
+  }
+  const content = document.createElement('p');
+  content.textContent = text;
+  wrapper.appendChild(content);
+  consultationChat.appendChild(wrapper);
+  consultationChat.scrollTop = consultationChat.scrollHeight;
 }
 
-$('#loginForm').addEventListener('submit', event => {
-  event.preventDefault();
-  const valid = $('#email').value.trim().toLowerCase() === CREDENTIALS.email && $('#password').value === CREDENTIALS.password;
-  $('#loginError').hidden = valid;
-  if (!valid) return;
-  sessionStorage.setItem('mineralIdSession', 'active');
-  loginView.hidden = true;
-  appView.hidden = false;
-  showScreen('inicio');
-  toast('Sesión demostrativa iniciada');
-});
+function buildGeologistReply(results) {
+  const [first, second] = results;
+  const gap = first.probability - second.probability;
 
-$('#togglePassword').addEventListener('click', () => {
-  const input = $('#password');
-  input.type = input.type === 'password' ? 'text' : 'password';
-});
+  if (gap <= 8) {
+    if (Math.random() < 0.5) {
+      const chosen = Math.random() < 0.5 ? first : second;
+      const alternative = chosen === first ? second : first;
+      return `Las probabilidades están muy próximas. Por los antecedentes disponibles, me inclino de forma tentativa por ${chosen.name}, aunque ${alternative.name} sigue siendo una alternativa razonable. Recomiendo observar brillo, raya y dureza antes de tomar una decisión.`;
+    }
+    return `Los porcentajes de ${first.name} y ${second.name} están demasiado próximos para emitir una conclusión responsable solo con esta imagen. La muestra debe revisarse en un laboratorio para confirmarla.`;
+  }
 
-$('#logoutBtn').addEventListener('click', () => {
-  sessionStorage.removeItem('mineralIdSession');
-  appView.hidden = true;
-  loginView.hidden = false;
-});
+  if (gap <= 25) {
+    return `La opción más consistente es ${first.name}. ${second.name} queda como una posibilidad secundaria cercana al 20%, pero los datos actuales no la respaldan como identificación principal. Sugiero confirmar con una prueba simple de raya o dureza.`;
+  }
 
-navLinks.forEach(button => button.addEventListener('click', () => showScreen(button.dataset.screen)));
-$$('[data-go]').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.go)));
-$('#menuBtn').addEventListener('click', () => $('.sidebar').classList.toggle('open'));
-
-function initializeMinerals() {
-  renderGuide(minerals);
+  return `Doy el visto bueno preliminar a la identificación como ${first.name}. La diferencia frente a ${second.name} es suficientemente amplia para considerarla la alternativa principal en esta simulación. De todos modos, una decisión crítica debe confirmarse con análisis mineralógico.`;
 }
 
-$('#imageInput').addEventListener('change', event => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    toast('Selecciona un archivo de imagen válido');
+async function startGeologistConsultation() {
+  if (!lastResults.length || consultationInProgress) return;
+
+  consultationInProgress = true;
+  consultBtn.disabled = true;
+  consultationPanel.classList.remove('hidden');
+  consultationChat.innerHTML = '';
+
+  const [first, second] = lastResults;
+  addConsultationMessage(
+    `Tengo dudas acerca del resultado. La aplicación indicó ${first.name} con ${first.probability}% y ${second.name} con ${second.probability}%.`,
+    'consultUser',
+    'Usuario'
+  );
+
+  await wait(450);
+  addConsultationMessage('En seguida un especialista revisará su caso.', 'consultSystem', 'Mineral ID');
+
+  const typing = document.createElement('div');
+  typing.className = 'consultTyping';
+  typing.innerHTML = '<span></span><span></span><span></span> Un geólogo está revisando el resultado…';
+  consultationChat.appendChild(typing);
+  consultationChat.scrollTop = consultationChat.scrollHeight;
+
+  await wait(randomDelay(900, 5000));
+  typing.remove();
+
+  const geologist = geologists[Math.floor(Math.random() * geologists.length)];
+  addConsultationMessage(buildGeologistReply(lastResults), 'consultGeologist', geologist);
+  consultationInProgress = false;
+  consultBtn.disabled = false;
+}
+
+startBtn.addEventListener('click', startCamera);
+takeBtn.addEventListener('click', takePhoto);
+stopBtn.addEventListener('click', stopCamera);
+consultBtn.addEventListener('click', startGeologistConsultation);
+closeConsultationBtn.addEventListener('click', () => consultationPanel.classList.add('hidden'));
+
+const chat = document.getElementById('chat');
+const userInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const voiceStatus = document.getElementById('voiceStatus');
+const voiceBtn = document.getElementById('voiceBtn');
+
+function addChatMessage(text, type) {
+  const message = document.createElement('div');
+  message.className = type;
+  message.textContent = text;
+  chat.appendChild(message);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function assistantReply(text) {
+  const normalized = text.toLowerCase();
+  if (normalized.includes('preparo') || normalized.includes('muestra') || normalized.includes('limpio')) {
+    return 'Retira el exceso de polvo, observa una superficie fresca y utiliza iluminación uniforme. Evita pruebas peligrosas.';
+  }
+  if (normalized.includes('preliminar')) {
+    return 'Es una estimación inicial que debe confirmarse con un geólogo o laboratorio cuando la decisión sea importante.';
+  }
+  if (normalized.includes('foto') || normalized.includes('cámara') || normalized.includes('camara')) {
+    return 'Di “toma una foto”. Abriré la cámara, capturaré la imagen y esperaré unos segundos mientras genero el análisis simulado.';
+  }
+  return 'Puedo ayudarte con la cámara, la preparación de la muestra y la identificación preliminar. También puedes decir “toma una foto”.';
+}
+
+function isTakePhotoCommand(text) {
+  const normalized = text.toLowerCase();
+  return [
+    'toma una foto', 'tomar una foto', 'tómame una foto', 'saca una foto',
+    'sacar una foto', 'captura una foto', 'haz una foto', 'analiza una foto'
+  ].some(command => normalized.includes(command));
+}
+
+async function executePhotoCommand() {
+  stopVoiceRecognition(false);
+  await wait(250);
+  addChatMessage('Entendido. Abriré la cámara, tomaré la fotografía y analizaré la muestra.', 'bot');
+  showScreen('camera');
+
+  const cameraStarted = await startCamera();
+  if (!cameraStarted) {
+    addChatMessage('No pude acceder a la cámara. Revisa los permisos del navegador.', 'bot');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = () => {
-    selectedImage = reader.result;
-    $('#imagePreview').src = selectedImage;
-    $('#imagePreview').hidden = false;
-    $('#uploadPlaceholder').hidden = true;
-    $('#analyzeBtn').disabled = false;
-    $('#emptyResult').hidden = false;
-    $('#analysisResult').hidden = true;
-  };
-  reader.onerror = () => toast('No fue posible leer la imagen');
-  reader.readAsDataURL(file);
+
+  status.textContent = 'Preparando captura automática…';
+  await wait(1400);
+  const resultText = await takePhoto();
+  if (resultText) addChatMessage(resultText, 'bot');
+}
+
+async function sendMessage(text) {
+  const cleanText = text.trim();
+  if (!cleanText) return;
+  addChatMessage(cleanText, 'user');
+
+  if (isTakePhotoCommand(cleanText)) {
+    await executePhotoCommand();
+  } else {
+    addChatMessage(assistantReply(cleanText), 'bot');
+  }
+}
+
+sendBtn.addEventListener('click', async () => {
+  const text = userInput.value;
+  userInput.value = '';
+  await sendMessage(text);
 });
 
-$('#analyzeBtn').addEventListener('click', () => {
-  if (!selectedImage) return;
-  $('#emptyResult').hidden = true;
-  $('#analysisResult').hidden = true;
-  $('#loadingResult').hidden = false;
-  $('#progressBar').style.width = '12%';
-  const steps = [
-    ['Evaluando calidad de imagen...', 35],
-    ['Comparando características...', 68],
-    ['Generando resultado preliminar...', 100]
-  ];
-  let index = 0;
-  const timer = setInterval(() => {
-    if (index >= steps.length) {
-      clearInterval(timer);
-      setTimeout(showResult, 450);
+userInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') sendBtn.click();
+});
+
+document.querySelectorAll('[data-msg]').forEach(button => {
+  button.addEventListener('click', () => sendMessage(button.dataset.msg));
+});
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isListening = false;
+let recognitionTimeout = null;
+let recognizedText = '';
+
+function updateVoiceInterface(listening, message) {
+  isListening = listening;
+  voiceBtn.classList.toggle('listening', listening);
+  voiceBtn.setAttribute('aria-pressed', String(listening));
+  voiceBtn.setAttribute('aria-label', listening ? 'Detener reconocimiento de voz' : 'Iniciar reconocimiento de voz');
+  voiceBtn.title = listening ? 'Detener reconocimiento de voz' : 'Iniciar reconocimiento de voz';
+  voiceBtn.textContent = listening ? '■' : '🎤';
+  if (message) voiceStatus.textContent = message;
+}
+
+function clearRecognitionTimeout() {
+  if (recognitionTimeout) clearTimeout(recognitionTimeout);
+  recognitionTimeout = null;
+}
+
+function stopVoiceRecognition(showMessage = true) {
+  clearRecognitionTimeout();
+  if (recognition && isListening) {
+    try {
+      recognition.stop();
+    } catch (error) {
+      updateVoiceInterface(false);
+    }
+  }
+  if (showMessage && isListening) voiceStatus.textContent = 'Reconocimiento detenido.';
+}
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-CL';
+  recognition.interimResults = false;
+  recognition.continuous = false;
+  recognition.maxAlternatives = 1;
+
+  voiceBtn.addEventListener('click', () => {
+    if (isListening) {
+      stopVoiceRecognition();
       return;
     }
-    $('#loadingText').textContent = steps[index][0];
-    $('#progressBar').style.width = `${steps[index][1]}%`;
-    index += 1;
-  }, 650);
-});
 
-function showResult() {
-  const randomMineral = minerals[Math.floor(Math.random() * minerals.length)];
-  currentResult = {
-    ...randomMineral,
-    confidence: Math.max(72, Math.min(96, randomMineral.confidence + Math.floor(Math.random() * 7) - 3)),
-    image: selectedImage,
-    date: new Date().toLocaleString('es-CL')
-  };
-  $('#loadingResult').hidden = true;
-  $('#analysisResult').hidden = false;
-  $('#resultName').textContent = currentResult.name;
-  $('#resultType').textContent = `${currentResult.type} · ${currentResult.symbol}`;
-  $('#resultConfidence').textContent = `${currentResult.confidence}%`;
-  $('#resultImage').src = currentResult.image;
-  $('#resultFeatures').innerHTML = currentResult.features.map(feature => `<li>${feature}</li>`).join('');
-  $('#resultAlternatives').innerHTML = currentResult.alternatives.map(item => `<span class="alt-chip">${item}</span>`).join('');
-  $('#resultDescription').textContent = currentResult.description;
-}
-
-$('#saveResultBtn').addEventListener('click', async () => {
-  if (!currentResult) return;
-  const button = $('#saveResultBtn');
-  button.disabled = true;
-  try {
-    await saveHistoryItem({ ...currentResult, id: Date.now() });
-    await updateHomeStats();
-    toast('Análisis guardado correctamente');
-  } catch (error) {
-    console.error(error);
-    toast('No se pudo guardar el análisis en este navegador');
-  } finally {
-    button.disabled = false;
-  }
-});
-
-async function renderHistory() {
-  const list = $('#historyList');
-  try {
-    const history = await getHistory();
-    if (!history.length) {
-      list.innerHTML = '<div class="empty-list"><h3>No hay análisis guardados</h3><p>Realiza un análisis y guárdalo para verlo aquí.</p></div>';
-      return;
+    recognizedText = '';
+    try {
+      recognition.start();
+    } catch (error) {
+      updateVoiceInterface(false, 'El reconocimiento ya estaba activo. Vuelve a intentarlo.');
     }
-    list.innerHTML = history.map(item => `
-      <article class="history-item">
-        <img src="${item.image}" alt="Imagen del análisis ${item.name}">
-        <div><h4>${item.name}</h4><p>${item.type}</p><p>${item.date}</p></div>
-        <span class="history-score">${item.confidence}%</span>
-      </article>`).join('');
-  } catch (error) {
-    console.error(error);
-    list.innerHTML = '<div class="empty-list"><h3>No fue posible cargar el historial</h3><p>El navegador puede estar bloqueando el almacenamiento local.</p></div>';
-  }
+  });
+
+  recognition.addEventListener('start', () => {
+    updateVoiceInterface(true, 'Escuchando… Di una instrucción. Pulsa ■ para detener.');
+    clearRecognitionTimeout();
+    recognitionTimeout = setTimeout(() => stopVoiceRecognition(false), 8000);
+  });
+
+  recognition.addEventListener('result', event => {
+    recognizedText = event.results[event.results.length - 1][0].transcript.trim();
+    voiceStatus.textContent = `Escuché: “${recognizedText}”`;
+    stopVoiceRecognition(false);
+  });
+
+  recognition.addEventListener('end', async () => {
+    clearRecognitionTimeout();
+    updateVoiceInterface(false);
+
+    if (recognizedText) {
+      const textToSend = recognizedText;
+      recognizedText = '';
+      await sendMessage(textToSend);
+    } else if (!voiceStatus.textContent.startsWith('Error') && voiceStatus.textContent.includes('Escuchando')) {
+      voiceStatus.textContent = 'No se detectó una instrucción. Inténtalo nuevamente.';
+    }
+  });
+
+  recognition.addEventListener('error', event => {
+    clearRecognitionTimeout();
+    recognizedText = '';
+    const messages = {
+      'not-allowed': 'No se concedió permiso para usar el micrófono.',
+      'audio-capture': 'No se encontró un micrófono disponible.',
+      'no-speech': 'No se detectó voz. Inténtalo nuevamente.',
+      'network': 'El reconocimiento de voz necesita conexión a internet en este navegador.',
+      'aborted': 'Reconocimiento detenido.'
+    };
+    updateVoiceInterface(false, messages[event.error] || 'Error al reconocer la voz. Inténtalo nuevamente.');
+  });
+} else {
+  voiceBtn.disabled = true;
+  voiceStatus.textContent = 'Este navegador no admite reconocimiento de voz. Prueba con Chrome en Android o escritorio.';
 }
 
-$('#clearHistoryBtn').addEventListener('click', async () => {
-  try {
-    await clearHistory();
-    await renderHistory();
-    await updateHomeStats();
-    toast('Historial eliminado');
-  } catch (error) {
-    console.error(error);
-    toast('No fue posible eliminar el historial');
-  }
+window.addEventListener('beforeunload', () => {
+  stopVoiceRecognition(false);
+  stopCamera();
 });
 
-async function updateHomeStats() {
-  try {
-    $('#homeHistoryCount').textContent = (await getHistory()).length;
-  } catch {
-    $('#homeHistoryCount').textContent = '—';
-  }
-}
-
-function renderGuide(data) {
-  $('#guideGrid').innerHTML = data.map(mineral => `
-    <article class="mineral-card">
-      <div class="mineral-visual">${mineral.symbol}</div>
-      <div><span class="mineral-tag">${mineral.category.toUpperCase()}</span><h4>${mineral.name}</h4><p><strong>${mineral.type}</strong></p><p>${mineral.description}</p></div>
-    </article>`).join('');
-}
-
-$('#mineralSearch').addEventListener('input', event => {
-  const query = event.target.value.trim().toLowerCase();
-  renderGuide(minerals.filter(mineral => `${mineral.name} ${mineral.type} ${mineral.category}`.toLowerCase().includes(query)));
-});
-
-$$('.request-plan').forEach(button => button.addEventListener('click', () => {
-  $('#contactPlan').value = button.dataset.plan;
-  $('#contactForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}));
-
-$('#contactForm').addEventListener('submit', event => {
-  event.preventDefault();
-  event.currentTarget.reset();
-  toast('Solicitud simulada enviada correctamente');
-});
-
-function addAssistantMessage(text, type) {
-  const message = document.createElement('div');
-  message.className = `assistant-message ${type}`;
-  message.textContent = text;
-  $('#assistantMessages').appendChild(message);
-  $('#assistantMessages').scrollTop = $('#assistantMessages').scrollHeight;
-}
-
-$('#assistantToggle').addEventListener('click', () => {
-  $('#assistantPanel').hidden = !$('#assistantPanel').hidden;
-});
-$('#assistantClose').addEventListener('click', () => {
-  $('#assistantPanel').hidden = true;
-});
-$$('[data-answer]').forEach(button => button.addEventListener('click', () => {
-  const response = assistantAnswers[button.dataset.answer];
-  addAssistantMessage(response.question, 'user');
-  button.disabled = true;
-  setTimeout(() => {
-    addAssistantMessage(response.answer, 'bot');
-    button.disabled = false;
-  }, 450);
-}));
-
-document.addEventListener('click', event => {
-  const panel = $('#assistantPanel');
-  const toggle = $('#assistantToggle');
-  if (!panel.hidden && !panel.contains(event.target) && !toggle.contains(event.target)) panel.hidden = true;
-});
-
-initializeMinerals();
-updateHomeStats();
-openDatabase().catch(error => console.error('IndexedDB no disponible:', error));
-if (sessionStorage.getItem('mineralIdSession') === 'active') {
-  loginView.hidden = true;
-  appView.hidden = false;
-  showScreen('inicio');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js').catch(() => {});
 }

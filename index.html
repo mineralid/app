@@ -1,270 +1,110 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#171715" />
-  <title>Mineral ID — MVP</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#171614" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
+  <title>Mineral ID</title>
 </head>
 <body>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <header>
+    <button id="homeLogo" class="brand" data-screen="home" aria-label="Ir al inicio">
+      <img src="mineral-id-logo.png" alt="Logo de Mineral ID" />
+      <span>MINERAL ID</span>
+    </button>
+    <button id="menuBtn" class="menuButton" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  </header>
 
-  <section id="loginView" class="login-view">
-    <div class="login-shell">
-      <div class="brand-panel">
-        <img src="assets/logo.png" alt="Logo de Mineral ID" class="brand-logo" />
-        <p class="eyebrow">MVP · IDENTIFICACIÓN PRELIMINAR</p>
-        <h1>Tecnología simple para decisiones rápidas en terreno.</h1>
-        <p class="muted">Demostración visual del flujo de captura, análisis simulado, historial y contratación empresarial.</p>
-        <div class="brand-stat-grid">
-          <article><strong>6</strong><span>minerales demo</span></article>
-          <article><strong>&lt; 5 s</strong><span>análisis simulado</span></article>
-          <article><strong>100%</strong><span>sin backend</span></article>
-        </div>
+  <nav id="menu" class="hidden" aria-label="Navegación principal">
+    <button data-screen="home">Inicio</button>
+    <button data-screen="camera">Cámara</button>
+    <button data-screen="assistant">Asistente</button>
+    <button data-screen="about">Acerca de</button>
+  </nav>
+
+  <main>
+    <section id="home" class="screen active">
+      <div class="hero">
+        <img class="heroLogo" src="mineral-id-logo.png" alt="Mineral ID, since 2026" />
+        <p class="eyebrow">IDENTIFICACIÓN PRELIMINAR</p>
+        <h1>Minerales, analizados en terreno.</h1>
+        <p>Captura una muestra y visualiza una identificación simulada con probabilidades generadas al azar.</p>
       </div>
-
-      <form id="loginForm" class="login-card">
-        <div>
-          <p class="eyebrow">ACCESO DEMOSTRATIVO</p>
-          <h2>Iniciar sesión</h2>
-          <p class="muted">Utiliza las credenciales del prototipo.</p>
-        </div>
-
-        <label>
-          Correo corporativo
-          <input id="email" type="email" autocomplete="username" value="mvp@mineralid.cl" required />
-        </label>
-        <label>
-          Contraseña
-          <div class="password-wrap">
-            <input id="password" type="password" autocomplete="current-password" value="123" required />
-            <button id="togglePassword" type="button" class="icon-btn" aria-label="Mostrar contraseña">◉</button>
-          </div>
-        </label>
-        <p id="loginError" class="form-error" hidden>Correo o contraseña incorrectos.</p>
-        <button class="btn btn-dark btn-block" type="submit">INICIAR SESIÓN</button>
-
-        <div class="demo-credentials">
-          <span>Credenciales demo</span>
-          <strong>mvp@mineralid.cl</strong>
-          <strong>123</strong>
-        </div>
-      </form>
-    </div>
-  </section>
-
-  <div id="appView" class="app-view" hidden>
-    <aside class="sidebar">
-      <a class="sidebar-brand" href="#inicio" data-screen="inicio">
-        <img src="assets/logo.png" alt="Mineral ID" />
-      </a>
-      <nav class="nav-list" aria-label="Navegación principal">
-        <button class="nav-link active" data-screen="inicio"><span>⌂</span>Inicio</button>
-        <button class="nav-link" data-screen="analizar"><span>⌾</span>Analizar</button>
-        <button class="nav-link" data-screen="historial"><span>◷</span>Historial</button>
-        <button class="nav-link" data-screen="guia"><span>▤</span>Guía mineral</button>
-        <button class="nav-link" data-screen="planes"><span>◇</span>Planes</button>
-        <button class="nav-link" data-screen="soporte"><span>?</span>Soporte</button>
-      </nav>
-      <div class="sidebar-footer">
-        <small>Sesión demo</small>
-        <strong>mvp@mineralid.cl</strong>
-        <button id="logoutBtn" class="text-btn">Cerrar sesión</button>
+      <div class="grid">
+        <button class="big primary" data-screen="camera">Abrir cámara</button>
+        <button class="big" data-screen="assistant">Hablar con el asistente</button>
+        <button class="big" data-screen="about">Acerca del proyecto</button>
       </div>
-    </aside>
+    </section>
 
-    <main class="main-content">
-      <header class="topbar">
-        <button id="menuBtn" class="menu-btn" aria-label="Abrir menú">☰</button>
-        <div>
-          <span class="eyebrow">MINERAL ID</span>
-          <h2 id="screenTitle">Panel principal</h2>
-        </div>
-        <div class="topbar-actions">
-          <span class="status-dot"></span>
-          <span>Modo demostración</span>
-        </div>
-      </header>
+    <section id="camera" class="screen">
+      <p class="eyebrow">CAPTURA Y ANÁLISIS</p>
+      <h2>Cámara</h2>
+      <p>Al tomar una fotografía, la aplicación genera inmediatamente un reconocimiento mineral simulado.</p>
+      <div class="cameraFrame">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" class="hidden"></canvas>
+        <img id="photo" alt="Fotografía capturada" class="hidden" />
+      </div>
+      <div class="actions">
+        <button id="startCamera" class="primary">Encender cámara</button>
+        <button id="takePhoto" disabled>Tomar y analizar</button>
+        <button id="stopCamera" disabled>Apagar cámara</button>
+      </div>
+      <p id="cameraStatus" class="status" aria-live="polite"></p>
+      <div id="mineralResult" class="result hidden" aria-live="polite"></div>
+      <button id="consultGeologist" class="consultButton hidden">Tengo dudas: contactar a un geólogo</button>
 
-      <section id="inicio" class="screen active-screen">
-        <div class="hero-card">
+      <section id="consultationPanel" class="consultationPanel hidden" aria-label="Consulta simulada con un geólogo">
+        <div class="consultationHeader">
           <div>
-            <p class="eyebrow">BIENVENIDO AL MVP</p>
-            <h1>Identificación preliminar de minerales, presentada de forma clara y profesional.</h1>
-            <p>Este prototipo simula el flujo de una futura aplicación empresarial sin utilizar inteligencia artificial real.</p>
-            <div class="hero-actions">
-              <button class="btn btn-dark" data-go="analizar">INICIAR ANÁLISIS</button>
-              <button class="btn btn-light" data-go="planes">VER PLANES</button>
-            </div>
+            <p class="resultLabel">REVISIÓN DE ESPECIALISTA</p>
+            <h3>Consulta mineralógica</h3>
           </div>
-          <div class="hero-mark">
-            <img src="assets/logo.png" alt="Mineral ID" />
-          </div>
+          <button id="closeConsultation" class="closeConsultation" aria-label="Cerrar consulta">×</button>
         </div>
-
-        <div class="section-heading">
-          <div><p class="eyebrow">ACCESOS RÁPIDOS</p><h3>¿Qué deseas hacer?</h3></div>
-        </div>
-        <div class="quick-grid">
-          <button class="feature-card" data-go="analizar"><span class="feature-icon">⌾</span><strong>Analizar mineral</strong><small>Captura o selecciona una imagen.</small></button>
-          <button class="feature-card" data-go="historial"><span class="feature-icon">◷</span><strong>Ver historial</strong><small>Consulta análisis guardados.</small></button>
-          <button class="feature-card" data-go="guia"><span class="feature-icon">▤</span><strong>Guía mineral</strong><small>Explora fichas informativas.</small></button>
-          <button class="feature-card" data-go="planes"><span class="feature-icon">◇</span><strong>Planes empresariales</strong><small>Conoce la propuesta comercial.</small></button>
-        </div>
-
-        <div class="metrics-grid">
-          <article class="metric-card"><span>Análisis guardados</span><strong id="homeHistoryCount">0</strong><small>en este navegador</small></article>
-          <article class="metric-card"><span>Minerales disponibles</span><strong>6</strong><small>en la demostración</small></article>
-          <article class="metric-card"><span>Estado</span><strong>Activo</strong><small>MVP listo para presentar</small></article>
-        </div>
+        <div id="consultationChat" class="consultationChat" aria-live="polite"></div>
+        <small>Esta conversación también es una simulación y no sustituye una revisión profesional real.</small>
       </section>
 
-      <section id="analizar" class="screen">
-        <div class="page-grid two-columns">
-          <div class="panel">
-            <p class="eyebrow">PASO 1</p>
-            <h3>Cargar imagen del mineral</h3>
-            <p class="muted">Puedes tomar una fotografía desde un teléfono o seleccionar una imagen existente.</p>
+      <small>Los resultados son aleatorios y únicamente demuestran el funcionamiento del prototipo.</small>
+    </section>
 
-            <label class="upload-zone" for="imageInput">
-              <input id="imageInput" type="file" accept="image/*" capture="environment" hidden />
-              <div id="uploadPlaceholder">
-                <span class="upload-icon">⌾</span>
-                <strong>Tomar foto o seleccionar imagen</strong>
-                <small>JPG, PNG o WEBP</small>
-              </div>
-              <img id="imagePreview" alt="Vista previa del mineral" hidden />
-            </label>
-
-            <div class="analysis-controls">
-              <button id="analyzeBtn" class="btn btn-dark btn-block" disabled>ANALIZAR MINERAL</button>
-            </div>
-            <p class="notice">El resultado es simulado y no reemplaza una evaluación geológica o de laboratorio.</p>
-          </div>
-
-          <div class="panel result-panel" id="resultPanel">
-            <div id="emptyResult" class="empty-state">
-              <span>◎</span>
-              <h3>Esperando una imagen</h3>
-              <p>El resultado del análisis aparecerá aquí.</p>
-            </div>
-
-            <div id="loadingResult" class="loading-state" hidden>
-              <div class="spinner"></div>
-              <h3 id="loadingText">Procesando imagen...</h3>
-              <div class="progress"><span id="progressBar"></span></div>
-            </div>
-
-            <div id="analysisResult" hidden>
-              <div class="result-header">
-                <div><p class="eyebrow">MINERAL IDENTIFICADO</p><h2 id="resultName">Calcopirita</h2><p id="resultType" class="muted"></p></div>
-                <div class="confidence"><strong id="resultConfidence">87%</strong><span>coincidencia</span></div>
-              </div>
-              <div class="result-body">
-                <img id="resultImage" alt="Imagen analizada" />
-                <div>
-                  <h4>Características</h4>
-                  <ul id="resultFeatures"></ul>
-                </div>
-              </div>
-              <div class="alternatives">
-                <span>Otras posibilidades</span>
-                <div id="resultAlternatives"></div>
-              </div>
-              <p id="resultDescription" class="result-description"></p>
-              <button id="saveResultBtn" class="btn btn-dark btn-block">GUARDAR EN HISTORIAL</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="historial" class="screen">
-        <div class="section-heading split-heading">
-          <div><p class="eyebrow">REGISTRO LOCAL</p><h3>Historial de análisis</h3></div>
-          <button id="clearHistoryBtn" class="btn btn-light">LIMPIAR HISTORIAL</button>
-        </div>
-        <div id="historyList" class="history-list"></div>
-      </section>
-
-      <section id="guia" class="screen">
-        <div class="section-heading split-heading">
-          <div><p class="eyebrow">BASE MINERALÓGICA</p><h3>Guía de minerales</h3></div>
-          <input id="mineralSearch" class="search-input" type="search" placeholder="Buscar mineral..." />
-        </div>
-        <div id="guideGrid" class="guide-grid"></div>
-      </section>
-
-      <section id="planes" class="screen">
-        <div class="section-heading"><div><p class="eyebrow">MODELO DE NEGOCIO</p><h3>Planes para empresas</h3><p class="muted">Valores demostrativos para presentar cómo podría adquirirse Mineral ID.</p></div></div>
-        <div class="plans-grid">
-          <article class="plan-card">
-            <span class="plan-label">INICIAL</span><h3>Plan Piloto</h3><p>Para validar la solución en un equipo reducido.</p><div class="price">$350.000 <small>/ piloto</small></div>
-            <ul><li>Hasta 5 usuarios</li><li>Guía mineralógica</li><li>Historial básico</li><li>1 capacitación remota</li></ul>
-            <button class="btn btn-light request-plan" data-plan="Plan Piloto">SOLICITAR DEMO</button>
-          </article>
-          <article class="plan-card featured">
-            <span class="plan-label">RECOMENDADO</span><h3>Plan Empresa</h3><p>Licencia anual para operaciones en terreno.</p><div class="price">$700.000 <small>/ año</small></div>
-            <ul><li>Hasta 20 usuarios</li><li>Actualizaciones incluidas</li><li>Soporte técnico</li><li>Panel de administración</li></ul>
-            <button class="btn btn-dark request-plan" data-plan="Plan Empresa">COTIZAR PLAN</button>
-          </article>
-          <article class="plan-card">
-            <span class="plan-label">COMPLEMENTOS</span><h3>Implementación</h3><p>Servicios y accesorios adicionales.</p><div class="price">A medida</div>
-            <ul><li>Carcasa con lupa</li><li>Capacitación presencial</li><li>Soporte premium</li><li>Integraciones futuras</li></ul>
-            <button class="btn btn-light request-plan" data-plan="Implementación">SOLICITAR INFORMACIÓN</button>
-          </article>
-        </div>
-
-        <form id="contactForm" class="contact-panel">
-          <div><p class="eyebrow">CONTACTO COMERCIAL</p><h3>Solicitar demostración</h3><p class="muted">Este formulario simula el proceso de contacto comercial.</p></div>
-          <div class="form-grid">
-            <label>Nombre<input required name="name" placeholder="Nombre y apellido" /></label>
-            <label>Empresa<input required name="company" placeholder="Empresa minera" /></label>
-            <label>Correo<input required type="email" name="email" placeholder="nombre@empresa.cl" /></label>
-            <label>Plan de interés<select name="plan" id="contactPlan"><option>Plan Piloto</option><option>Plan Empresa</option><option>Implementación</option></select></label>
-          </div>
-          <label>Mensaje<textarea name="message" rows="4" placeholder="Cuéntanos cuántos usuarios tendría el equipo..."></textarea></label>
-          <button class="btn btn-dark" type="submit">ENVIAR SOLICITUD</button>
-        </form>
-      </section>
-
-      <section id="soporte" class="screen">
-        <div class="support-grid">
-          <article class="panel"><p class="eyebrow">PREGUNTAS FRECUENTES</p><h3>Soporte del MVP</h3><details open><summary>¿La aplicación identifica minerales realmente?</summary><p>No. Esta versión simula el análisis para demostrar el flujo de uso.</p></details><details><summary>¿Dónde se guardan los análisis?</summary><p>En el almacenamiento local del navegador mediante JavaScript.</p></details><details><summary>¿Funciona en celulares?</summary><p>Sí. El diseño es adaptable y el selector de imagen puede abrir la cámara del teléfono.</p></details></article>
-          <article class="panel"><p class="eyebrow">CONTACTO</p><h3>¿Necesitas ayuda?</h3><p>Correo del proyecto:</p><a class="contact-link" href="mailto:mvp@mineralid.cl">mvp@mineralid.cl</a><p class="muted">En esta demostración, los envíos de formularios no llegan a un servidor.</p></article>
-        </div>
-      </section>
-    </main>
-  </div>
-
-
-  <button id="assistantToggle" class="assistant-toggle" aria-label="Abrir asistente">
-    <span>✦</span>
-    <span>Asistente</span>
-  </button>
-
-  <aside id="assistantPanel" class="assistant-panel" aria-label="Asistente de Mineral ID" hidden>
-    <header class="assistant-header">
-      <div>
-        <small>ASISTENTE DEMOSTRATIVO</small>
-        <strong>Mineral ID</strong>
+    <section id="assistant" class="screen">
+      <p class="eyebrow">CONTROL POR VOZ</p>
+      <h2>Asistente</h2>
+      <div id="chat" class="chat" aria-live="polite">
+        <div class="bot">Pulsa el micrófono y di “toma una foto”. El asistente encenderá la cámara, capturará la imagen y mostrará el análisis simulado.</div>
       </div>
-      <button id="assistantClose" class="assistant-close" aria-label="Cerrar asistente">×</button>
-    </header>
-    <div id="assistantMessages" class="assistant-messages">
-      <div class="assistant-message bot">Hola. Soy el asistente de Mineral ID. Selecciona una pregunta para conocer cómo funcionaría la aplicación.</div>
-    </div>
-    <div class="assistant-options">
-      <button data-answer="capture">¿Cómo tomar una buena foto?</button>
-      <button data-answer="confidence">¿Qué significa la coincidencia?</button>
-      <button data-answer="laboratory">¿Reemplaza al laboratorio?</button>
-      <button data-answer="plans">¿Cómo contratar Mineral ID?</button>
-      <button data-answer="support">Necesito soporte</button>
-    </div>
-  </aside>
+      <div class="quick">
+        <button data-msg="Toma una foto">Tomar y analizar una foto</button>
+        <button data-msg="¿Cómo preparo la muestra?">¿Cómo preparo la muestra?</button>
+        <button data-msg="¿Qué significa identificación preliminar?">¿Qué significa identificación preliminar?</button>
+      </div>
+      <div class="inputRow">
+        <input id="userInput" type="text" placeholder="Escribe o dicta una instrucción" />
+        <button id="sendBtn">Enviar</button>
+        <button id="voiceBtn" class="voice" title="Iniciar reconocimiento de voz" aria-label="Iniciar reconocimiento de voz" aria-pressed="false">🎤</button>
+      </div>
+      <p id="voiceStatus" class="voiceStatus" aria-live="polite">Pulsa el micrófono para hablar.</p>
+    </section>
+
+    <section id="about" class="screen">
+      <img class="aboutLogo" src="mineral-id-logo.png" alt="Logo de Mineral ID" />
+      <p class="eyebrow">SINCE 2026</p>
+      <h2>Acerca de Mineral ID</h2>
+      <p>Mineral ID es un prototipo orientado a apoyar la identificación preliminar de muestras minerales directamente en terreno.</p>
+      <ul>
+        <li>Captura y análisis simulado en una sola acción.</li>
+        <li>Control de la cámara mediante comandos de voz.</li>
+        <li>Probabilidades aleatorias para demostrar la interfaz.</li>
+        <li>Diseño simple, sobrio y adaptado a dispositivos móviles.</li>
+      </ul>
+      <p><strong>Importante:</strong> la aplicación no realiza un diagnóstico real ni reemplaza a un geólogo o laboratorio.</p>
+    </section>
+  </main>
 
   <script src="app.js"></script>
 </body>
