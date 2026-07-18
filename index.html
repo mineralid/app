@@ -141,9 +141,6 @@
             </label>
 
             <div class="analysis-controls">
-              <label>Resultado para la demostración
-                <select id="demoMineral"></select>
-              </label>
               <button id="analyzeBtn" class="btn btn-dark btn-block" disabled>ANALIZAR MINERAL</button>
             </div>
             <p class="notice">El resultado es simulado y no reemplaza una evaluación geológica o de laboratorio.</p>
@@ -242,6 +239,32 @@
       </section>
     </main>
   </div>
+
+
+  <button id="assistantToggle" class="assistant-toggle" aria-label="Abrir asistente">
+    <span>✦</span>
+    <span>Asistente</span>
+  </button>
+
+  <aside id="assistantPanel" class="assistant-panel" aria-label="Asistente de Mineral ID" hidden>
+    <header class="assistant-header">
+      <div>
+        <small>ASISTENTE DEMOSTRATIVO</small>
+        <strong>Mineral ID</strong>
+      </div>
+      <button id="assistantClose" class="assistant-close" aria-label="Cerrar asistente">×</button>
+    </header>
+    <div id="assistantMessages" class="assistant-messages">
+      <div class="assistant-message bot">Hola. Soy el asistente de Mineral ID. Selecciona una pregunta para conocer cómo funcionaría la aplicación.</div>
+    </div>
+    <div class="assistant-options">
+      <button data-answer="capture">¿Cómo tomar una buena foto?</button>
+      <button data-answer="confidence">¿Qué significa la coincidencia?</button>
+      <button data-answer="laboratory">¿Reemplaza al laboratorio?</button>
+      <button data-answer="plans">¿Cómo contratar Mineral ID?</button>
+      <button data-answer="support">Necesito soporte</button>
+    </div>
+  </aside>
 
   <script src="app.js"></script>
 </body>
